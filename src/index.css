@@ -1,0 +1,88 @@
+/* AgriSense — Global Styles */
+
+/* Google Fonts */
+@import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap");
+
+/* Reset minimal */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  /* Smooth scroll global */
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #f0f7f4;
+  color: #1b2d1e;
+  font-family: "Inter", "Segoe UI", sans-serif;
+  line-height: 1.5;
+  /* Mencegah horizontal scroll */
+  overflow-x: hidden;
+}
+
+/* Keyboard focus visible — override default outline */
+:focus-visible {
+  outline: 2px solid #2d6a4f;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Hapus outline saat klik mouse (hanya tampil saat keyboard) */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Reduced motion — disable semua animasi jika user prefer */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Navbar desktop — default hidden, tampil di ≥768px */
+.agrisense-navbar {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .agrisense-navbar {
+    display: block;
+  }
+
+  /* Di desktop, konten tidak perlu padding bottom untuk BottomNav */
+  main {
+    padding-bottom: 2rem !important;
+  }
+}
+
+/* Utility — skip to main content untuk keyboard user */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #2d6a4f;
+  color: #fff;
+  padding: 8px 16px;
+  z-index: 999;
+  border-radius: 0 0 8px 0;
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  text-decoration: none;
+  transition: top 150ms ease-out;
+}
+
+.skip-link:focus {
+  top: 0;
+}
