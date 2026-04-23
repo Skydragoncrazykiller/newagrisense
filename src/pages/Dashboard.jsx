@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Navbar from "../components/layout/Navbar";
 import BottomNav from "../components/layout/BottomNav";
 import SensorCard from "../components/widgets/SensorCard";
 import RiskIndex from "../components/widgets/RiskIndex";
 import RecommendationSummary from "../components/widgets/RecommendationSummary";
+import useSensorData from "../hooks/useSensorData";
 import { colors, spacing, typography } from "../lib/tokens";
 
 // ---------------------------------------------------------------------------
@@ -62,17 +63,6 @@ const IconCloud = () => (
   </svg>
 );
 
-// ---------------------------------------------------------------------------
-// Data simulasi — nanti diganti useSensorData hook yang fetch ke /sensor/latest
-// ---------------------------------------------------------------------------
-
-const DEMO_SENSOR = {
-  suhu: 29,
-  kelembapan: 87,
-  curahHujan: 215,
-  updatedAt: "10 menit lalu",
-};
-
 // Tentukan status sensor berdasarkan threshold sederhana
 const sensorStatus = (key, value) => {
   if (key === "suhu")
@@ -83,14 +73,6 @@ const sensorStatus = (key, value) => {
   return "normal";
 };
 
-// Derive risk level dari data sensor — logika sederhana untuk demo
-// Rule engine sesungguhnya ada di backend /rekomendasi
-const deriveRisk = ({ suhu, kelembapan, curahHujan }) => {
-  if (curahHujan > 200 && kelembapan > 85) return "tinggi";
-  if (curahHujan > 100 || kelembapan > 80) return "sedang";
-  return "rendah";
-};
-
 const riskDescription = {
   rendah:
     "Kondisi cuaca saat ini aman. Lakukan monitoring rutin dan belum perlu aplikasi pestisida.",
@@ -98,17 +80,6 @@ const riskDescription = {
     "Kelembapan cukup tinggi. Pantau kemunculan gejala Wereng dan Blast di petak ladang.",
   tinggi:
     "Curah hujan dan kelembapan tinggi meningkatkan risiko Blast dan Hawar Pelepah. Segera cek rekomendasi pestisida.",
-};
-
-const DEMO_REKOMENDASI = {
-  pupuk: [
-    { jenis: "Urea", dosis: "150 kg/ha" },
-    { jenis: "NPK", dosis: "100 kg/ha" },
-  ],
-  pestisida: [
-    { jenis: "Mancozeb", dosis: "400 L air/ha" },
-    { jenis: "Carbendazim", dosis: "500 L air/ha" },
-  ],
 };
 
 // ---------------------------------------------------------------------------
@@ -175,32 +146,39 @@ const Section = ({ label, children, style = {} }) => (
 
 const Dashboard = ({ onNavigate }) => {
   const [activeNav, setActiveNav] = useState("dashboard");
-  const [sensor, setSensor] = useState(DEMO_SENSOR);
+  const { sensor, rekomendasi, loading, error, isDemo } = useSensorData();
 
-  // Simulasi refresh data setiap 60 detik
-  // Ganti dengan useSensorData() saat API backend tersedia
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // Variasi kecil untuk simulasi sensor "hidup"
-      setSensor((prev) => ({
-        ...prev,
-        suhu: Math.round(prev.suhu + (Math.random() - 0.5) * 2),
-        kelembapan: Math.min(
-          100,
-          Math.max(50, Math.round(prev.kelembapan + (Math.random() - 0.5) * 3)),
-        ),
-        updatedAt: "baru saja",
-      }));
-    }, 60_000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const riskLevel = deriveRisk(sensor);
+  const riskLevel = rekomendasi?.risk_level ?? "rendah";
 
   const handleNavChange = (id) => {
     setActiveNav(id);
     onNavigate?.(id);
   };
+
+  // Loading state — skeleton sederhana
+  if (loading) {
+    return (
+      <div
+        style={{
+          minHeight: "100dvh",
+          background: colors.bgPage,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <p
+          style={{
+            fontSize: typography.base,
+            fontFamily: typography.fontBody,
+            color: colors.textMuted,
+          }}
+        >
+          Memuat data sensor...
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -226,18 +204,36 @@ const Dashboard = ({ onNavigate }) => {
         id="main-content"
         aria-label="Konten dashboard utama"
       >
-        {/* Judul halaman — hanya tampil di mobile */}
+        {/* Judul halaman */}
         <PageHeader
           title="Beranda"
-          subtitle={`Diperbarui ${sensor.updatedAt}`}
+          subtitle={sensor ? `Diperbarui ${sensor.updatedAt}` : ""}
         />
 
-        {/* Indeks risiko — paling prominent, zero-scroll */}
+        {/* Banner demo mode */}
+        {isDemo && (
+          <div
+            style={{
+              background: colors.riskMedium.bg,
+              border: `0.5px solid ${colors.riskMedium.border}`,
+              borderRadius: "8px",
+              padding: `${spacing.sm} ${spacing.lg}`,
+              marginBottom: spacing.lg,
+              fontSize: typography.sm,
+              fontFamily: typography.fontBody,
+              color: colors.riskMedium.text,
+            }}
+          >
+            Mode simulasi — backend belum terhubung.
+          </div>
+        )}
+
+        {/* Indeks risiko */}
         <Section>
           <RiskIndex
             level={riskLevel}
-            description={riskDescription[riskLevel]}
-            lastChecked="14:35 WIB"
+            description={rekomendasi?.alasan ?? riskDescription[riskLevel]}
+            lastChecked={sensor?.updatedAt ?? ""}
           />
         </Section>
 
@@ -252,27 +248,27 @@ const Dashboard = ({ onNavigate }) => {
           >
             <SensorCard
               label="Suhu Udara"
-              value={sensor.suhu}
+              value={sensor?.suhu ?? "--"}
               unit="°C"
               icon={<IconThermo />}
-              updatedAt={sensor.updatedAt}
-              status={sensorStatus("suhu", sensor.suhu)}
+              updatedAt={sensor?.updatedAt ?? ""}
+              status={sensorStatus("suhu", sensor?.suhu)}
             />
             <SensorCard
               label="Kelembapan"
-              value={sensor.kelembapan}
+              value={sensor?.kelembapan ?? "--"}
               unit="%"
               icon={<IconDroplets />}
-              updatedAt={sensor.updatedAt}
-              status={sensorStatus("kelembapan", sensor.kelembapan)}
+              updatedAt={sensor?.updatedAt ?? ""}
+              status={sensorStatus("kelembapan", sensor?.kelembapan)}
             />
             <SensorCard
               label="Curah Hujan"
-              value={sensor.curahHujan}
+              value={sensor?.curahHujan ?? "--"}
               unit="mm/bln"
               icon={<IconCloud />}
-              updatedAt={sensor.updatedAt}
-              status={sensorStatus("curahHujan", sensor.curahHujan)}
+              updatedAt={sensor?.updatedAt ?? ""}
+              status={sensorStatus("curahHujan", sensor?.curahHujan)}
             />
           </div>
         </Section>
@@ -280,8 +276,8 @@ const Dashboard = ({ onNavigate }) => {
         {/* Ringkasan rekomendasi */}
         <Section label="Rekomendasi Hari Ini">
           <RecommendationSummary
-            pupuk={DEMO_REKOMENDASI.pupuk}
-            pestisida={DEMO_REKOMENDASI.pestisida}
+            pupuk={rekomendasi?.pupuk ?? []}
+            pestisida={rekomendasi?.pestisida ?? []}
             onDetail={() => handleNavChange("rekomendasi")}
           />
         </Section>
